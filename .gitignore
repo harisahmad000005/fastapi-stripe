@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# FastAPI specific
+.env # Environment variables
+
+logs/ # Log files
+db.sqlite3 # Example for SQLite database files
+*.db # Other database files if applicable
+alembic/versions/ # Alembic migration files (if using SQLAlchemy/Alembic)
+
+# IDE and OS specific
+.idea/ # IntelliJ/PyCharm
+.vscode/ # VS Code
+.DS_Store # macOS
+Thumbs.db # Windows
