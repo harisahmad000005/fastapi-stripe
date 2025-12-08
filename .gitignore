@@ -15,8 +15,8 @@ dist/
 .ruff_cache/
 
 # FastAPI specific
-.env # Environment variables
-
+#Environment variables
+.env
 logs/ # Log files
 db.sqlite3 # Example for SQLite database files
 *.db # Other database files if applicable
