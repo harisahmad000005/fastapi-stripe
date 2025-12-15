@@ -6,11 +6,11 @@ Base = declarative_base()
 
 
 class Payment(Base):
-__tablename__ = "payments"
+    __tablename__ = "payments"
 
-id = Column(Integer, primary_key=True, index=True)
-stripe_payment_intent_id = Column(String, unique=True, index=True, nullable=False)
-amount = Column(Integer, nullable=False)
-currency = Column(String, default="usd")
-status = Column(String, index=True)
-created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id = Column(Integer, primary_key=True, index=True)
+    stripe_payment_intent_id = Column(String, unique=True, index=True, nullable=False)
+    amount = Column(Integer, nullable=False)
+    currency = Column(String, default="usd")
+    status = Column(String, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
