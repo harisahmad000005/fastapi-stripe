@@ -13,4 +13,5 @@ python-multipart==0.0.6
 gunicorn==20.1.0
 psycopg[binary]==3.2.3
 pytest-mock==3.12.0
-aiosqlite==0.20.0
+aiosqlite==0.20.0\
+python-dotenv==1.0.0
