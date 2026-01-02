@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.db.base import Base  # Your declarative Base
+from app.db.base import Base  # Base now imports Payment model
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -24,9 +24,10 @@ def event_loop():
 # ------------------------------
 @pytest.fixture(scope="function")
 async def test_db():
+    # Use in-memory SQLite DB for tests
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
     async with engine.begin() as conn:
-        # Create all tables in memory
+        # Create all tables (Payment table will exist)
         await conn.run_sync(Base.metadata.create_all)
 
     AsyncSessionLocal = sessionmaker(
@@ -34,7 +35,7 @@ async def test_db():
     )
     async with AsyncSessionLocal() as session:
         yield session
-    # Drop all tables after test
+    # Drop all tables after test to clean up
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
@@ -44,14 +45,14 @@ async def test_db():
 # ------------------------------
 @pytest.mark.asyncio
 async def test_create_payment_success(mocker, test_db):
-    # Mock the function where the route actually uses it
-    # Patch the path used in your route
+    # Mock the Stripe function used by the route
     mock_intent = {
         "id": "pi_test_123",
         "client_secret": "cs_test_123",
         "status": "requires_payment_method",
     }
 
+    # Patch the exact import path used in your route
     mocker.patch(
         "app.api.v1.payments.create_payment_intent",
         return_value=mock_intent,
@@ -74,7 +75,6 @@ async def test_create_payment_success(mocker, test_db):
 async def test_stripe_webhook(mocker, test_db):
     mock_event = {"id": "evt_test_123", "type": "payment_intent.succeeded"}
 
-    # Patch the function where the route imports it
     mocker.patch(
         "app.api.v1.payments.retrieve_event",
         return_value=mock_event,
