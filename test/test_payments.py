@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.db.models import Base, Payment  # Your Payment model
 from app.main import app  # Your FastAPI app
-import asyncio
 
 # -------------------------------
 # Fixture for in-memory SQLite DB
@@ -65,11 +64,20 @@ async def test_create_payment_success(mocker, test_db):
     # -------------------------
     assert response.status_code == 200
     data = response.json()
-    assert data["id"] == mock_intent["id"]
+    
+    # Match Stripe payment intent ID and status
+    assert data["stripe_payment_intent_id"] == mock_intent["id"]
     assert data["status"] == mock_intent["status"]
+    assert data["amount"] == 5000
+    assert data["currency"] == "usd"
 
     # Ensure record exists in DB
-    payment_in_db = await test_db.get(Payment, mock_intent["id"])
+    result = await test_db.execute(
+        Payment.__table__.select().where(
+            Payment.stripe_payment_intent_id == mock_intent["id"]
+        )
+    )
+    payment_in_db = result.first()
     assert payment_in_db is not None
     assert payment_in_db.amount == 5000
     assert payment_in_db.currency == "usd"
