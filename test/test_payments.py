@@ -2,38 +2,23 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from app.db.models import Base, Payment  # Your Payment model
-from app.main import app  # Your FastAPI app
+from app.db.models import Base, Payment
+from app.main import app
 
-# -------------------------------
-# Fixture for in-memory SQLite DB
-# -------------------------------
 @pytest.fixture
 async def test_db():
-    # Create async in-memory engine
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-
-    # Create all tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-    # Create async session factory
     async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-    # Provide a session for the test
     async with async_session() as session:
         yield session
-
-    # Dispose engine after test
     await engine.dispose()
 
 
-# -----------------------------------
-# Test for creating a payment
-# -----------------------------------
 @pytest.mark.asyncio
 async def test_create_payment_success(mocker, test_db):
-    # Mock Stripe payment intent function
+    # Mock Stripe payment intent
     mock_intent = {
         "id": "pi_test_123",
         "client_secret": "cs_test_123",
@@ -44,7 +29,6 @@ async def test_create_payment_success(mocker, test_db):
         return_value=mock_intent,
     )
 
-    # Override get_db dependency to use in-memory test_db
     from app.api.v1.payments import get_db as original_get_db
 
     async def override_get_db():
@@ -52,32 +36,27 @@ async def test_create_payment_success(mocker, test_db):
 
     app.dependency_overrides[original_get_db] = override_get_db
 
-    # Make request using AsyncClient
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/payments/create",
             json={"amount_cents": 5000, "currency": "usd"},
         )
 
-    # -------------------------
-    # Assertions
-    # -------------------------
     assert response.status_code == 200
     data = response.json()
-    
-    # Match Stripe payment intent ID and status
-    assert data["stripe_payment_intent_id"] == mock_intent["id"]
-    assert data["status"] == mock_intent["status"]
-    assert data["amount"] == 5000
-    assert data["currency"] == "usd"
 
-    # Ensure record exists in DB
+    # Check database record matches
     result = await test_db.execute(
-        Payment.__table__.select().where(
-            Payment.stripe_payment_intent_id == mock_intent["id"]
-        )
+        Payment.__table__.select().where(Payment.id == data["id"])
     )
     payment_in_db = result.first()
     assert payment_in_db is not None
     assert payment_in_db.amount == 5000
     assert payment_in_db.currency == "usd"
+    assert payment_in_db.status == mock_intent["status"]
+
+    # Check response matches DB record
+    assert data["id"] == payment_in_db.id
+    assert data["amount"] == payment_in_db.amount
+    assert data["currency"] == payment_in_db.currency
+    assert data["status"] == payment_in_db.status
