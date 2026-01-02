@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
 
 from app.main import app
 from app.db.models import Base, Payment
@@ -12,13 +13,16 @@ from app.db.models import Base, Payment
 # -------------------------------
 @pytest.fixture
 async def test_db():
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=False,
+    )
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     async_session = sessionmaker(
-        engine, expire_on_commit=False, class_=AsyncSession
+        engine, class_=AsyncSession, expire_on_commit=False
     )
 
     async with async_session() as session:
@@ -27,12 +31,12 @@ async def test_db():
     await engine.dispose()
 
 
-# -------------------------------
-# Test: create payment
-# -------------------------------
+# -----------------------------------
+# Payment creation test
+# -----------------------------------
 @pytest.mark.asyncio
 async def test_create_payment_success(mocker, test_db):
-    # Mock Stripe intent
+    # Mock Stripe response
     mock_intent = {
         "id": "pi_test_123",
         "client_secret": "cs_test_123",
@@ -59,21 +63,20 @@ async def test_create_payment_success(mocker, test_db):
             json={"amount_cents": 5000, "currency": "usd"},
         )
 
-    # -------------------------
-    # Assertions
-    # -------------------------
     assert response.status_code == 200
     data = response.json()
 
-    assert data["amount"] == 5000
-    assert data["currency"] == "usd"
+    # API response assertions (ONLY what API returns)
+    assert data["client_secret"] == mock_intent["client_secret"]
     assert data["status"] == mock_intent["status"]
 
-    # Verify DB insert
-    result = await test_db.execute(Payment.__table__.select())
-    payment = result.first()
+    # -------------------------
+    # Database assertions
+    # -------------------------
+    result = await test_db.execute(select(Payment))
+    payment = result.scalar_one()
 
-    assert payment is not None
+    assert payment.stripe_payment_intent_id == mock_intent["id"]
     assert payment.amount == 5000
     assert payment.currency == "usd"
     assert payment.status == mock_intent["status"]
