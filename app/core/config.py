@@ -1,5 +1,5 @@
+from functools import lru_cache
 from pydantic import BaseSettings, AnyUrl
-
 
 class Settings(BaseSettings):
     APP_ENV: str = "development"
@@ -17,4 +17,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
-settings = Settings()
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

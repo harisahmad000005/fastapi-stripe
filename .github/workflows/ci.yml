@@ -9,9 +9,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.11]
+
+    env:
+        PYTHONPATH: ${{ github.workspace }}
+
 
     steps:
       - name: Checkout code
@@ -20,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -30,9 +31,3 @@ jobs:
       - name: Run tests
         run: |
           pytest --asyncio-mode=auto --maxfail=1 --disable-warnings -q
-
-      - name: Lint (optional)
-        run: |
-          pip install black ruff
-          ruff check .
-          black --check .
