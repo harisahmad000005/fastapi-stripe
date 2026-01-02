@@ -1,5 +1,5 @@
 from functools import lru_cache
-from pydantic import BaseSettings, AnyUrl
+from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     APP_ENV: str = "development"
@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    DATABASE_URL: AnyUrl
+    DATABASE_URL: str
 
     STRIPE_SECRET_KEY: str
     STRIPE_WEBHOOK_SECRET: str
