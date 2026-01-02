@@ -45,18 +45,20 @@ async def test_db():
 # ------------------------------
 @pytest.mark.asyncio
 async def test_create_payment_success(mocker, test_db):
-    # Mock the Stripe function used by the route
+    # Mock Stripe
     mock_intent = {
         "id": "pi_test_123",
         "client_secret": "cs_test_123",
         "status": "requires_payment_method",
     }
-
-    # Patch the exact import path used in your route
     mocker.patch(
         "app.api.v1.payments.create_payment_intent",
         return_value=mock_intent,
     )
+
+    # Override get_db to use in-memory test_db
+    from app.api.v1.payments import get_db as original_get_db
+    app.dependency_overrides[original_get_db] = lambda: test_db
 
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.post(
@@ -66,6 +68,10 @@ async def test_create_payment_success(mocker, test_db):
 
     assert response.status_code == 200
     assert response.json() == mock_intent
+
+    # Clean up override
+    app.dependency_overrides = {}
+
 
 
 # ------------------------------
