@@ -1,14 +1,51 @@
 import pytest
+import asyncio
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 from app.main import app
+from app.db.base import Base  # Your declarative Base
+from app.core.config import get_settings
+
+settings = get_settings()
+
+# ------------------------------
+# Event loop for async tests
+# ------------------------------
+@pytest.fixture(scope="session")
+def event_loop():
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+# ------------------------------
+# Async test database fixture
+# ------------------------------
+@pytest.fixture(scope="function")
+async def test_db():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    async with engine.begin() as conn:
+        # Create all tables in memory
+        await conn.run_sync(Base.metadata.create_all)
+
+    AsyncSessionLocal = sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with AsyncSessionLocal() as session:
+        yield session
+    # Drop all tables after test
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
 
 # ------------------------------
 # Test create_payment endpoint
 # ------------------------------
 @pytest.mark.asyncio
-async def test_create_payment_success(mocker):
+async def test_create_payment_success(mocker, test_db):
     # Mock the function where the route actually uses it
-    # Note: app.api.v1.payments imports create_payment_intent, so we patch that path
+    # Patch the path used in your route
     mock_intent = {
         "id": "pi_test_123",
         "client_secret": "cs_test_123",
@@ -31,10 +68,10 @@ async def test_create_payment_success(mocker):
 
 
 # ------------------------------
-# Test retrieve_event endpoint
+# Test Stripe webhook endpoint
 # ------------------------------
 @pytest.mark.asyncio
-async def test_stripe_webhook(mocker):
+async def test_stripe_webhook(mocker, test_db):
     mock_event = {"id": "evt_test_123", "type": "payment_intent.succeeded"}
 
     # Patch the function where the route imports it
